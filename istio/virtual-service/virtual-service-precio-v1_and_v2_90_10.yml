@@ -1,0 +1,20 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  creationTimestamp: null
+  name: precio
+spec:
+  hosts:
+    - precio
+  http:
+    - route:
+        - destination:
+            host: precio
+            subset: version-v1
+          weight: 90
+        - destination:
+            host: precio
+            subset: version-v2
+          weight: 10
+---
+

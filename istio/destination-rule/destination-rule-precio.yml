@@ -1,0 +1,11 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: precio
+spec:
+  host: precio
+  subsets:
+  - labels:
+      app: precio
+    name: app-precio
+---

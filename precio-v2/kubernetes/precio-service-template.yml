@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+  labels:
+    app: precio
+    application: precio
+    version: v2
+  name: precio-v2
+spec:
+  selector:
+    matchLabels:
+      application: precio
+      version: v2
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: precio
+        application: precio
+        deployment: precio
+        version: v2
+
+      # Habilita Red Hat Service Mesh's automatic istio sidecar injection
+      annotations:
+        sidecar.istio.io/inject: "true"
+
+      name: precio
+    spec:
+      containers:
+      - env:
+        - name: KUBERNETES_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: JAVA_OPTIONS
+          value: -Dvertx.cacheDirBase=/tmp/vertx-cache
+        image: quay.io/arielcarralbal/precio:2.0.0
+        ports:
+        - containerPort: 8080
+
+        livenessProbe:
+          failureThreshold: 2
+          httpGet:
+            path: /health
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: precio
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        resources:
+          limits:
+            cpu: 250m
+            memory: 500Mi
+          requests:
+            cpu: 125m
+            memory: 500Mi
+        securityContext:
+          privileged: false
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
