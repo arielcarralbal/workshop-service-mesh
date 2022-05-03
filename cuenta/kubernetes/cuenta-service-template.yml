@@ -42,31 +42,10 @@ spec:
               fieldPath: metadata.namespace
 
         # Use OpenTracing enabled image
-        image: quay.io/arielcarralbal/cuenta:latest
+        image: quay.io/arielcarralbal/cuenta-mp:1.1.0
         ports:
         - containerPort: 8080
-
-        livenessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /actuator/health
-            port: 8080
-            scheme: HTTP
-          initialDelaySeconds: 60
-          periodSeconds: 10
-          successThreshold: 1
-          timeoutSeconds: 1
         name: cuenta
-        readinessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /actuator/health
-            port: 8080
-            scheme: HTTP
-          initialDelaySeconds: 60
-          periodSeconds: 10
-          successThreshold: 1
-          timeoutSeconds: 1
         resources:
           limits:
             cpu: 250m

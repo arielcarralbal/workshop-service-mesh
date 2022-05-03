@@ -2,9 +2,9 @@ apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
 metadata:
   creationTimestamp: null
-  name: recomendacion
+  name: precio
 spec:
-  host: recomendacion
+  host: precio
   subsets:
   - labels:
       version: v1

@@ -41,31 +41,10 @@ spec:
               fieldPath: metadata.namespace
         - name: JAVA_OPTIONS
           value: -Dvertx.cacheDirBase=/tmp/vertx-cache
-        image: quay.io/arielcarralbal/precio:2.0.0
+        image: quay.io/arielcarralbal/precio-mp:2.1.0
         ports:
         - containerPort: 8080
-
-        livenessProbe:
-          failureThreshold: 2
-          httpGet:
-            path: /health
-            port: 8080
-            scheme: HTTP
-          initialDelaySeconds: 60
-          periodSeconds: 10
-          successThreshold: 1
-          timeoutSeconds: 1
         name: precio
-        readinessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /health
-            port: 8080
-            scheme: HTTP
-          initialDelaySeconds: 20
-          periodSeconds: 10
-          successThreshold: 1
-          timeoutSeconds: 1
         resources:
           limits:
             cpu: 250m

@@ -6,14 +6,14 @@ metadata:
   labels:
     app: precio
     application: precio
-    version: v1
-  name: precio-v1
+    version: v2
+  name: precio-v2
 spec:
   selector:
     matchLabels:
       application: precio
       deployment: precio
-      version: v1
+      version: v2
   strategy:
     rollingUpdate:
       maxSurge: 1
@@ -25,7 +25,7 @@ spec:
         app: precio
         application: precio
         deployment: precio
-        version: v1
+        version: v2
 
       # Habilita Red Hat Service Mesh's automatic istio sidecar injection
       annotations:
@@ -42,10 +42,31 @@ spec:
               fieldPath: metadata.namespace
         - name: JAVA_OPTIONS
           value: -Dvertx.cacheDirBase=/tmp/vertx-cache
-        image: quay.io/arielcarralbal/precio-mp:1.1.0
+        image: quay.io/arielcarralbal/precio:2.1.0
         ports:
         - containerPort: 8080
+
+        livenessProbe:
+          failureThreshold: 2
+          httpGet:
+            path: /health
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
         name: precio
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
         resources:
           limits:
             cpu: 250m

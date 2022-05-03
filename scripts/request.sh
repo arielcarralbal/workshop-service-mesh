@@ -14,6 +14,7 @@ fi
 	echo "Realizando $cantidadDeRequests Requests..."
 	while [ $i -lt $cantidadDeRequests ]; do
 		curl https://$GATEWAY_URL --insecure
+		sleep .1
 		let "i=$((i + 1))"
 	done
 
