@@ -14,7 +14,7 @@ spec:
       mode: SIMPLE
       credentialName: cliente-certs
     hosts:
-    - 'workshop-mesh-apps-c.apps.kali.rlab.sh'
+    - 'workshop-mesh-apps-N.apps.kali.rlab.sh'
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
@@ -22,7 +22,7 @@ metadata:
   name: gateway-workshop
 spec:
   hosts:
-  - 'workshop-mesh-apps-c.apps.kali.rlab.sh'
+  - 'workshop-mesh-apps-N.apps.kali.rlab.sh'
   gateways:
   - gateway-workshop
   http:

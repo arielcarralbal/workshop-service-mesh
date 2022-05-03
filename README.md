@@ -31,7 +31,9 @@ Debemos contar con los siguientes comandos:
 
 ### 2. Deploy de microservicios
 
-Ejecutamos los siguientes comandos. En el primero reemplazamos la N con el grupo asignado.
+Ejecutamos los siguientes comandos. 
+
+IMPORTANTE: En el primero reemplazamos la "N" con el grupo asignado.
 ```sh
 echo "export PROJECT=workshop-mesh-apps-N" >> $HOME/.bashrc
 source $HOME/.bashrc
@@ -41,32 +43,89 @@ cd workshop-service-mesh
 ```
 Luego de clonar este repositorio, iniciamos sesión en OpenShift.
 
-Verificamos los valores de las siguientes variables antes de continuar.
-- *PROJECT* con el nombre del proyecto (namespace).
-- *GATEWAY_URL* con la ruta expuesta (Ej: workshop-a.ejemplo.com).
-  Verificamos que sus valores antes de continuar.
+IMPORTANTE: Reemplazamos la "N" con el número de grupo asignado.
+```sh
+oc login -u userN -p r3dh4t1!
+```
+
+Verificamos los valores de las siguientes variables de entorno antes de continuar:
+- *PROJECT* con el nombre del proyecto (namespace). 
 
 ```sh
 echo $PROJECT
-echo $GATEWAY_URL
 ```
+Debemos ver *workshop-mesh-apps-N* ("N" es el número de grupo asignado).
 
-Creamos el proyecto en OpenShift (este proyecto se debe dar de alta en la Service Mesh antes o después).
+
+Ejecutamos el siguiente comando para posicionarnos en nuestro proyecto
+(este proyecto se debe dar de alta en la Service Mesh antes o después).
 
 ```sh
-oc new-project $PROJECT
+oc project $PROJECT
 ```
 
-Damos permiso de ejecución al script deploy.
+Damos permiso de ejecución al script deploy y lo ejecutamos.
 ```sh
 chmod +x deploy.sh
-```
-Ejecutamos el script.
-
-```sh
 ./deploy.sh
 ```
 
+Creamos una nueva variable de entorno:
+- *GATEWAY_URL* con la ruta expuesta (Ej: workshop-mesh-apps-N.apps.kali.rlab.sh).
+
+En el primero reemplazamos la "N" con el grupo asignado.
+```sh
+echo "export GATEWAY_URL=workshop-mesh-apps-N.apps.kali.rlab.sh" >> $HOME/.bashrc
+source $HOME/.bashrc
+echo $GATEWAY_URL
+```
+Editamos el archivo 
+**istio/Gateway-VirtualService.yaml** y en *host* reemplazamos "N" con el grupo asignado.
+```yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: gateway-workshop
+spec:
+  selector:
+    istio: ingressgateway # use istio default controller
+  servers:
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      credentialName: cliente-certs
+    hosts:
+    - 'workshop-mesh-apps-N.apps.kali.rlab.sh'
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: gateway-workshop
+spec:
+  hosts:
+  - 'workshop-mesh-apps-N.apps.kali.rlab.sh'
+  gateways:
+  - gateway-workshop
+  http:
+  - match:
+    - uri:
+        exact: /
+    route:
+    - destination:
+        host: cuenta
+        port:
+          number: 8080
+
+```
+
+Por último creamos el Gateway y VirtualService con el yaml recién editado:
+```sh
+oc create -f istio/Gateway-VirtualService.yaml -n $PROJECT
+```
+Con la creación del Gateway, OpenShift crea la ruta (Route) automáticamente.
 # Ejercicios
 ## 1. Control de tráfico
 ### 1.1 Rutear a versión específica
@@ -96,6 +155,7 @@ Mediante VirtualService vamos a redirecionar el 90% del tráfico a la v1 y sólo
 ```sh
 oc replace -n $PROJECT -f istio/virtual-service/virtual-service-precio-v1_and_v2_90_10.yml
 ```
+¡Probemos otras opciones de balanceo!
 
 ## Resiliencia de servicios
 ### Balanceo de carga
@@ -109,6 +169,7 @@ Luego de observar el comportamiento actual, creamos el siguiente DR.
 ```sh
 oc create -n $PROJECT -f istio/destination-rule/destination-rule-precio_lb_policy_app.yml
 ```
+Editemos el yaml y probemos otro balanceo.
 Por último, eliminamos el DR y volvemos a 1 réplica.
 ```sh
 oc delete -n $PROJECT -f istio/destination-rule/destination-rule-precio_lb_policy_app.yml
@@ -139,7 +200,56 @@ oc exec -it $(oc get pods | grep precio-v2 | awk '{ print $1 }' | head -1) -c pr
 curl localhost:8080/fast
 exit
 ```
-### Reintentos
+
+### Circuit breaker
+Agregamos una demora de 3 segundos en la respueta a la v2 desde el endpoint *slow*
+```sh
+oc create -n $PROJECT -f istio/destination-rule/destination-rule-precio-v1-v2.yml
+oc create -n $PROJECT -f istio/virtual-service/virtual-service-precio-v1_and_v2_50_50.yml
+```
+Generemos carga: 20 clientes enviando cada 2 requests concurrentes cada uno.
+```sh
+siege -r 2 -c 20 -v https://$GATEWAY_URL
+```
+Recordemos que el VirtualService actual divide 50% a v1 y 50% a v2. Ahora, creamos la política del cb con el DestinationRule que afecta sólo al 50% del tráfico (v2), limitando el número de conexiones y el número de solicitudes pendientes a 1.
+```sh
+oc -n $PROJECT replace -f istio/destination-rule/destination-rule-precio_cb_policy_version_v2.yml
+```
+Volvemos a generar carga
+```sh
+siege -r 2 -c 20 -v https://$GATEWAY_URL
+```
+Devolvemos a la versión v2 los tiempos de respuesta normales desde el endpoint *fast*, eliminamos el VS y el DR.
+```sh
+oc delete virtualservice precio -n $PROJECT
+oc delete destinationrule precio -n $PROJECT
+```
+
+
+## Testing de Caos
+### HTTP Errors
+Ahora vamos a generar errores desde Istio y no desde el servicio.
+
+Creamos un VS que genera error 503 el 50% de las veces.
+```sh
+oc create -n $PROJECT -f istio/virtual-service/virtual-service-precio-503.yml
+```
+Eliminamos el vs.
+```sh
+oc delete virtualservice precio -n $PROJECT
+```
+### Demoras
+
+El siguiente VS inyecta 7 segundos de demora en el 50% de las respuestas del servicio.
+```sh
+oc create -n $PROJECT -f istio/virtual-service/virtual-service-precio-delay.yml
+```
+Eliminamos el vs.
+```sh
+oc delete virtualservice precio -n $PROJECT
+```
+
+## Observabilidad
 Ingresamos dentro dentro del contenedor del pod
 ```sh
 oc exec -it $(oc get pods | grep precio-v2 | awk '{ print $1 }' | head -1) -c precio /bin/bash
@@ -166,72 +276,4 @@ y devolvemos a precio-v2 el comportamiento correcto.
 oc exec -it $(oc get pods | grep precio-v2 | awk '{ print $1 }' | head -1) -c precio /bin/bash
 curl localhost:8080/behave
 exit
-```
-### Circuit breaker
-Agregamos una demora de 3 segundos en la respueta a la v2 desde el endpoint *slow*
-```sh
-oc create -n $PROJECT -f istio/destination-rule/destination-rule-precio-v1-v2.yml
-oc create -n $PROJECT -f istio/virtual-service/virtual-service-precio-v1_and_v2_50_50.yml
-```
-Generemos carga: 20 clientes enviando cada 2 requests concurrentes cada uno.
-```sh
-siege -r 2 -c 20 -v https://$GATEWAY_URL
-```
-Recordemos que el VirtualService actual divide 50% a v1 y 50% a v2. Ahora, creamos la política del cb con el DestinationRule que afecta sólo al 50% del tráfico (v2), limitando el número de conexiones y el número de solicitudes pendientes a 1.
-```sh
-oc -n $PROJECT replace -f istio/destination-rule/destination-rule-precio_cb_policy_version_v2.yml
-```
-Volvemos a generar carga
-```sh
-siege -r 2 -c 20 -v https://$GATEWAY_URL
-```
-Devolvemos a la versión v2 los tiempos de respuesta normales desde el endpoint *fast*, eliminamos el VS y el DR.
-```sh
-oc delete virtualservice precio -n $PROJECT
-oc delete destinationrule precio -n $PROJECT
-```
-### Pool Ejection
-
-Creamos el DR, VS y escalamos v2 a 2 réplicas.
-```sh
-oc create -n $PROJECT -f istio/destination-rule/destination-rule-precio-v1-v2.yml
-oc create -n $PROJECT -f istio/virtual-service/virtual-service-precio-v1_and_v2_50_50.yml
-oc scale deployment precio-v2 --replicas=2 -n $PROJECT
-```
-Entramos a la terminal de uno de los pods de v2 y llamamos al endpoint *misbehave* para que genere mal comportamiento.
-
-Con esta DestinationRule, Istio verifica cada 5 segundos los pods que se comportan mal y elimina esos pods del grupo de balanceo de carga después de un error consecutivo y lo mantiene fuera durante 15 segundos.
-```sh
-oc -n $PROJECT replace -f istio/destination-rule/destination-rule-precio_cb_policy_pool_ejection.yml
-```
-Entramos a la terminal de uno de los pods de v2 y llamamos al endpoint *behave* para devolver el buen comportamiento.
-
-Eliminamos el VS y el DR. Volvemos a una réplica.
-```sh
-oc delete virtualservice precio -n $PROJECT
-oc delete destinationrule precio -n $PROJECT
-oc scale deployment precio-v2 --replicas=1 -n $PROJECT
-```
-
-## Testing de Caos
-### HTTP Errors
-Ahora vamos a generar errores desde Istio y no desde el servicio.
-
-Creamos un VS que genera error 503 el 50% de las veces.
-```sh
-oc create -n $PROJECT -f istio/virtual-service/virtual-service-precio-503.yml
-```
-Eliminamos el vs.
-```sh
-oc delete virtualservice precio -n $PROJECT
-```
-### Demoras
-
-El siguiente VS inyecta 7 segundos de demora en el 50% de las respuestas del servicio.
-```sh
-oc create -n $PROJECT -f istio/virtual-service/virtual-service-precio-delay.yml
-```
-Eliminamos el vs.
-```sh
-oc delete virtualservice precio -n $PROJECT
 ```

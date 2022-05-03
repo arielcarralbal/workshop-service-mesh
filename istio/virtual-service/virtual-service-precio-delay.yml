@@ -5,14 +5,14 @@ metadata:
   name: precio
 spec:
   hosts:
-  - precio
+    - precio
   http:
-  - fault:
-      delay:
-        fixedDelay: 7s
-        percent: 50
+    - fault:
+        delay:
+          fixedDelay: 7s
+          percentage:
+            value: 100
     route:
-    - destination:
-        host: precio
-        subset: app-precio
----
+      - destination:
+          host: precio
+          subset: app-precio
