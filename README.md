@@ -44,14 +44,14 @@ Luego de clonar este repositorio, iniciamos sesión en OpenShift.
 Verificamos los valores de las siguientes variables antes de continuar.
 - *PROJECT* con el nombre del proyecto (namespace).
 - *GATEWAY_URL* con la ruta expuesta (Ej: workshop-a.ejemplo.com).
-Verificamos que sus valores antes de continuar.
+  Verificamos que sus valores antes de continuar.
 
 ```sh
 echo $PROJECT
 echo $GATEWAY_URL
 ```
 
-Creamos el proyecto en OpenShift (este proyecto se debe dar de alta en la Service Mesh antes o después). 
+Creamos el proyecto en OpenShift (este proyecto se debe dar de alta en la Service Mesh antes o después).
 
 ```sh
 oc new-project $PROJECT
@@ -67,7 +67,7 @@ Ejecutamos el script.
 ./deploy.sh
 ```
 
-# Ejercicios 
+# Ejercicios
 ## 1. Control de tráfico
 ### 1.1 Rutear a versión específica
 
@@ -90,7 +90,7 @@ oc create -n $PROJECT -f istio/destination-rule/destination-rule-precio-v1-v2.ym
 oc create -n $PROJECT -f istio/virtual-service/virtual-service-precio-v2.yml
 ```
 
-####Canary release
+#### Canary release
 Mediante VirtualService vamos a redirecionar el 90% del tráfico a la v1 y sólo el 10% a la v2.
 
 ```sh
@@ -98,7 +98,7 @@ oc replace -n $PROJECT -f istio/virtual-service/virtual-service-precio-v1_and_v2
 ```
 
 ## Resiliencia de servicios
-###Balanceo de carga
+### Balanceo de carga
 Istio brinda 3 algoritmos configurables: ROUND_ROBIN, RANDOM, LEAST_CONN. Eliminamos el VS y el DR precio. Luego escalamos v2 a 3 réplicas.
 ```sh
 oc delete virtualservice precio -n $PROJECT
@@ -114,7 +114,7 @@ Por último, eliminamos el DR y volvemos a 1 réplica.
 oc delete -n $PROJECT -f istio/destination-rule/destination-rule-precio_lb_policy_app.yml
 oc scale deployment precio-v2 --replicas=1 -n $PROJECT
 ```
-###Timeout
+### Timeout
 Agregaremos a la v2 una demora de 3 segundos al responder.
 Ingresamos dentro dentro del contenedor del pod
 ```sh
@@ -139,7 +139,7 @@ oc exec -it $(oc get pods | grep precio-v2 | awk '{ print $1 }' | head -1) -c pr
 curl localhost:8080/fast
 exit
 ```
-###Reintentos
+### Reintentos
 Ingresamos dentro dentro del contenedor del pod
 ```sh
 oc exec -it $(oc get pods | grep precio-v2 | awk '{ print $1 }' | head -1) -c precio /bin/bash
@@ -167,7 +167,7 @@ oc exec -it $(oc get pods | grep precio-v2 | awk '{ print $1 }' | head -1) -c pr
 curl localhost:8080/behave
 exit
 ```
-###Circuit breaker
+### Circuit breaker
 Agregamos una demora de 3 segundos en la respueta a la v2 desde el endpoint *slow*
 ```sh
 oc create -n $PROJECT -f istio/destination-rule/destination-rule-precio-v1-v2.yml
@@ -190,9 +190,9 @@ Devolvemos a la versión v2 los tiempos de respuesta normales desde el endpoint 
 oc delete virtualservice precio -n $PROJECT
 oc delete destinationrule precio -n $PROJECT
 ```
-###Pool Ejection
+### Pool Ejection
 
-Creamos el DR, VS y escalamos v2 a 2 réplicas. 
+Creamos el DR, VS y escalamos v2 a 2 réplicas.
 ```sh
 oc create -n $PROJECT -f istio/destination-rule/destination-rule-precio-v1-v2.yml
 oc create -n $PROJECT -f istio/virtual-service/virtual-service-precio-v1_and_v2_50_50.yml
@@ -211,9 +211,27 @@ Eliminamos el VS y el DR. Volvemos a una réplica.
 oc delete virtualservice precio -n $PROJECT
 oc delete destinationrule precio -n $PROJECT
 oc scale deployment precio-v2 --replicas=1 -n $PROJECT
-
 ```
+
 ## Testing de Caos
-`Pendiente`
+### HTTP Errors
+Ahora vamos a generar errores desde Istio y no desde el servicio.
 
+Creamos un VS que genera error 503 el 50% de las veces.
+```sh
+oc create -n $PROJECT -f istio/virtual-service/virtual-service-precio-503.yml
+```
+Eliminamos el vs.
+```sh
+oc delete virtualservice precio -n $PROJECT
+```
+### Demoras
 
+El siguiente VS inyecta 7 segundos de demora en el 50% de las respuestas del servicio.
+```sh
+oc create -n $PROJECT -f istio/virtual-service/virtual-service-precio-delay.yml
+```
+Eliminamos el vs.
+```sh
+oc delete virtualservice precio -n $PROJECT
+```
