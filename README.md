@@ -126,6 +126,8 @@ Por último creamos el Gateway y VirtualService con el yaml recién editado:
 oc create -f istio/Gateway-VirtualService.yaml -n $PROJECT
 ```
 Con la creación del Gateway, OpenShift crea la ruta (Route) automáticamente.
+Veamos en cómo quedó todo.
+
 # Ejercicios
 ## 1. Control de tráfico
 ### 1.1 Rutear a versión específica
@@ -204,6 +206,12 @@ exit
 ### Circuit breaker
 Agregamos una demora de 3 segundos en la respueta a la v2 desde el endpoint *slow*
 ```sh
+oc exec -it $(oc get pods | grep precio-v2 | awk '{ print $1 }' | head -1) -c precio /bin/bash
+curl localhost:8080/slow
+exit
+```
+Agredamos los siguientes DR y VS.
+```sh
 oc create -n $PROJECT -f istio/destination-rule/destination-rule-precio-v1-v2.yml
 oc create -n $PROJECT -f istio/virtual-service/virtual-service-precio-v1_and_v2_50_50.yml
 ```
@@ -221,6 +229,9 @@ siege -r 2 -c 20 -v https://$GATEWAY_URL
 ```
 Devolvemos a la versión v2 los tiempos de respuesta normales desde el endpoint *fast*, eliminamos el VS y el DR.
 ```sh
+oc exec -it $(oc get pods | grep precio-v2 | awk '{ print $1 }' | head -1) -c precio /bin/bash
+curl localhost:8080/fast
+exit
 oc delete virtualservice precio -n $PROJECT
 oc delete destinationrule precio -n $PROJECT
 ```

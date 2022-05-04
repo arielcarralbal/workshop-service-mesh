@@ -46,3 +46,6 @@ nbbuild/
 dist/
 nbdist/
 .nb-gradle/
+
+### VS Code ###
+.vscode
