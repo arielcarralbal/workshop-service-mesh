@@ -12,14 +12,15 @@ if [[ -z ${PROJECT} ]]; then
   exit
 else
   log "Usando PROJECT con valor: ${PROJECT}"
+  oc project $PROJECT
 fi
 
-if [[ -z ${GATEWAY_URL} ]]; then
-  log "La variable de entorno GATEWAY_URL no está definida"
-  exit
-else
-  log "Usando GATEWAY_URL con valor: ${GATEWAY_URL}"
-fi
+#if [[ -z ${GATEWAY_URL} ]]; then
+#  log "La variable de entorno GATEWAY_URL no está definida"
+#  exit
+#else
+#  log "Usando GATEWAY_URL con valor: ${GATEWAY_URL}"
+#fi
 
 #log "Login..."
 #oc login -u user1 -p r3dh4t1!

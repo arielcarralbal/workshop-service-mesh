@@ -56,14 +56,6 @@ echo $PROJECT
 ```
 Debemos ver *workshop-mesh-apps-N* ("N" es el número de grupo asignado).
 
-
-Ejecutamos el siguiente comando para posicionarnos en nuestro proyecto
-(este proyecto se debe dar de alta en la Service Mesh antes o después).
-
-```sh
-oc project $PROJECT
-```
-
 Damos permiso de ejecución al script deploy y lo ejecutamos.
 ```sh
 chmod +x deploy.sh
